@@ -1,4 +1,3 @@
-
 import Rhino as rh
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
@@ -110,6 +109,13 @@ def update_views():
         rs.ViewDisplayMode(view, 'Ghosted')
     """
     sc.doc.Views.Redraw()
+    
+
+def finalize_views():
+    views = rs.ViewNames()
+    for view in views:
+        rs.ViewDisplayMode(view, 'Ghosted')
+    sc.doc.Views.Redraw()
 
 
 def main(settings):
@@ -129,6 +135,7 @@ def main(settings):
     mean_orientation = settings['orientation mean']
     walls_no = settings['walls']
     double_wall_dist = settings['opposing walls distance']
+    height_scaling_factor = settings['height scaling factor']
     
     # adding layers
     feat_lname = 'domes'
@@ -169,6 +176,11 @@ def main(settings):
     rs.CurrentLayer(aux_lname)
     cplane_id = rs.AddSrfPt(cutplane_pts)
     
+    # scaling features in z direction only
+    rs.CurrentView('Front')
+    for c, idx in zip(feat_centers, feat_ids):
+        rs.ScaleObject(idx, c, [1., height_scaling_factor, 1.])
+        
     # cutting features, delete cutplane
     rs.CurrentLayer(feat_lname)
     for i in feat_ids:
@@ -263,6 +275,8 @@ def main(settings):
     output_list('height_east.txt', walls_east_int_height)
     output_list('height_north.txt', walls_north_int_height)
     
+    finalize_views()
+    
     print 'Feature number', feat_no
     print 'North wall intersections:', walls_north_int_no
     print 'East wall intersections:', walls_north_int_no
@@ -273,14 +287,14 @@ if __name__== '__main__':
     settings['half length'] = 150. # [m] half length of model so that xmin/ymin = -half length and xmax/ymax = half length
     settings['density'] = 0.0015 # features per square meter
     settings['shear angle'] = 30. # [deg]
-    settings['rmin'] = 3. # [m] minimum dome radius
-    settings['rmax'] = 5. # [m] maximum dome radius
+    settings['rmin'] = 4. # [m] minimum dome radius
+    settings['rmax'] = 5.5 # [m] maximum dome radius
     settings['rsigma'] = 1.5 # [m] standard deviation of radii distribution
     settings['orientation sigma'] = 1. # [deg] standard deviation of orientation distribuition
     settings['orientation mean'] = 0. # [deg] mean orientation of features w.r.t. x-axis
     settings['walls'] = 10 # number of double walls east and north
     settings['opposing walls distance'] = 7. # [m] distance between two opposing walls
-    
+    settings['height scaling factor'] = 0.3 # 0-1, where 1 means no scaling
     
     for m in range(1):
         rd.seed(0)
