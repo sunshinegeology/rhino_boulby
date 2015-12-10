@@ -1,3 +1,4 @@
+
 import Rhino as rh
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
@@ -73,23 +74,19 @@ def analyze_intersection(cidx):
     return intersection_data(spt, ept, hipt)
 
 
-rmin, rmax = 3.0, 5.5
-mean_radius = (rmax+rmin)/2
-sigma_radius = mean_radius/2.
-def feature_radius(mean_radius):
+def feature_radius(rmin, rmax, rsigma):
+    mean_radius = (rmax+rmin)/2
     radius = 0.
     while radius < rmin or radius > rmax:
-        radius = rd.gauss(mean_radius, sigma_radius)
+        radius = rd.gauss(mean_radius, rsigma)
     return radius
 
 
-sigma_rotation = 1.
-def feature_orientation(mean_orientation):
+def feature_orientation(mean_orientation, sigma_rotation):
     return mean_orientation + rd.gauss(mean_orientation, sigma_rotation)
 
 
-feature_center_min_dist = rmax*2
-def non_intersecting_center_points(pt_no, xlim, ylim):
+def non_intersecting_center_points(pt_no, xlim, ylim, feature_center_min_dist):
     pts = [rand_point(xlim, ylim)]
     while len(pts) < pt_no:
         new_pt = rand_point(xlim, ylim)
@@ -115,17 +112,23 @@ def update_views():
     sc.doc.Views.Redraw()
 
 
-def main():
+def main(settings):
     # resetting
     rs.DocumentModified(False)
     rs.Command('_-New _None')
     update_views()
     
     # settings    
-    half_length = 100.
+    half_length = settings['half length']
     xlim, ylim = (-half_length,half_length), (-half_length,half_length)
-    feat_no = 50
-    shear_angle = 30.
+    feat_no = int(settings['density']*(half_length*2.)**2)
+    shear_angle = settings['shear angle']
+    rmin, rmax, rsigma = settings['rmin'], settings['rmax'], settings['rsigma']
+    feature_center_min_dist = rmax*2
+    sigma_rotation = settings['orientation sigma']
+    mean_orientation = settings['orientation mean']
+    walls_no = settings['walls']
+    double_wall_dist = settings['opposing walls distance']
     
     # adding layers
     feat_lname = 'domes'
@@ -134,9 +137,9 @@ def main():
     
     # adding features
     feat_ids = []
-    feat_radii = [feature_radius(mean_radius) for i in range(feat_no)]
+    feat_radii = [feature_radius(rmin, rmax, rsigma) for i in range(feat_no)]
     rs.CurrentLayer(feat_lname)
-    feat_centers = non_intersecting_center_points(feat_no, xlim, ylim)
+    feat_centers = non_intersecting_center_points(feat_no, xlim, ylim, feature_center_min_dist)
     for i, c in enumerate(feat_centers):
         f = rh.Geometry.Sphere(c, feat_radii[i])
         i = sc.doc.Objects.AddSphere(f)
@@ -150,18 +153,17 @@ def main():
         rs.ShearObject(idx, c, ref_pt, shear_angle)
         
     # rotating features
-    mean_orientation = 0.
     axis = [0,0,1]
     for c, idx in zip(feat_centers, feat_ids):
-        angle = feature_orientation(mean_orientation)
+        angle = feature_orientation(mean_orientation, sigma_rotation)
         rs.RotateObject(idx, c, angle, axis)
     
     # creating a  z = 0 cutplane
     cutplane_pts = []
-    cutplane_pts += [rh.Geometry.Point3d(xlim[0]-2*mean_radius, ylim[0]-2*mean_radius, 0)]
-    cutplane_pts += [rh.Geometry.Point3d(xlim[1]+2*mean_radius, ylim[0]-2*mean_radius, 0)]
-    cutplane_pts += [rh.Geometry.Point3d(xlim[1]+2*mean_radius, ylim[1]+2*mean_radius, 0)]
-    cutplane_pts += [rh.Geometry.Point3d(xlim[0]-2*mean_radius, ylim[1]+2*mean_radius, 0)]
+    cutplane_pts += [rh.Geometry.Point3d(xlim[0]-2*rmax, ylim[0]-2*rmax, 0)]
+    cutplane_pts += [rh.Geometry.Point3d(xlim[1]+2*rmax, ylim[0]-2*rmax, 0)]
+    cutplane_pts += [rh.Geometry.Point3d(xlim[1]+2*rmax, ylim[1]+2*rmax, 0)]
+    cutplane_pts += [rh.Geometry.Point3d(xlim[0]-2*rmax, ylim[1]+2*rmax, 0)]
     aux_lname = 'auxilliary'
     rs.AddLayer(aux_lname) 
     rs.CurrentLayer(aux_lname)
@@ -176,8 +178,8 @@ def main():
     
     # placing observation walls
     double_wall_dist = 7. # distance between two opposing walls
-    wall_height = 2*mean_radius
-    walls_east_no = 6
+    wall_height = 2*rmax
+    walls_east_no = walls_no
     dl_walls = (xlim[1]-xlim[0])/(walls_east_no-1)
     walls_east_lname = 'walls_east'
     rs.AddLayer(walls_east_lname) 
@@ -249,19 +251,38 @@ def main():
     walls_east_int_width = [width(idata) for idata in walls_east_int_data]
     walls_north_int_width = [width(idata) for idata in walls_north_int_data]
     
+    walls_east_int_height = [height(idata) for idata in walls_east_int_data]
+    walls_north_int_height = [height(idata) for idata in walls_north_int_data]
+    
     output_list('skewness_east.txt', walls_east_int_skewness)
     output_list('skewness_north.txt', walls_north_int_skewness)  
     output_list('aratio_east.txt', walls_east_int_aratio)
     output_list('aratio_north.txt', walls_north_int_aratio)
     output_list('width_east.txt', walls_east_int_width)
     output_list('width_north.txt', walls_north_int_width)
+    output_list('height_east.txt', walls_east_int_height)
+    output_list('height_north.txt', walls_north_int_height)
     
+    print 'Feature number', feat_no
     print 'North wall intersections:', walls_north_int_no
     print 'East wall intersections:', walls_north_int_no
 
 
-if __name__== '__main__':
-    rd.seed(0)
+if __name__== '__main__':    
+    settings = dict()
+    settings['half length'] = 150. # [m] half length of model so that xmin/ymin = -half length and xmax/ymax = half length
+    settings['density'] = 0.0015 # features per square meter
+    settings['shear angle'] = 30. # [deg]
+    settings['rmin'] = 3. # [m] minimum dome radius
+    settings['rmax'] = 5. # [m] maximum dome radius
+    settings['rsigma'] = 1.5 # [m] standard deviation of radii distribution
+    settings['orientation sigma'] = 1. # [deg] standard deviation of orientation distribuition
+    settings['orientation mean'] = 0. # [deg] mean orientation of features w.r.t. x-axis
+    settings['walls'] = 10 # number of double walls east and north
+    settings['opposing walls distance'] = 7. # [m] distance between two opposing walls
+    
+    
     for m in range(1):
-        main()
+        rd.seed(0)
+        main(settings)
 
