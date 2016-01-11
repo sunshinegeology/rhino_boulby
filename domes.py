@@ -8,10 +8,22 @@ import random as rd
 import sys
 import os
 
-"""
-TODO
-- variations: skew, orientation
-"""
+
+def Ellipsoid(c, radius, aratio):
+    """c is centerpoint, radius is short side along in y-dir, aratio is long side to short side or radius in x-dir."""
+    pt0, pt1, pt2 = cp.deepcopy(c), cp.deepcopy(c), cp.deepcopy(c)
+    pt0[1] += radius
+    pt1[0] += radius*aratio
+    pt2[2] += radius
+
+    cmd = "_Ellipsoid " + str(c) + " " + str(pt0) + " " + str(pt1) + " " + str(pt2)    
+    blnResult = rs.Command(cmd, echo=False)
+
+    if blnResult == True:
+        return rs.LastCreatedObjects()[0]
+    raise IOError('Cmdline construction of ellipsoid didnt work')
+
+        
 
 def unif_rand(lo, hi):
     return rd.random()*(hi-lo)+lo
@@ -136,7 +148,9 @@ def main(settings):
     walls_no = settings['walls']
     double_wall_dist = settings['opposing walls distance']
     height_scaling_factor = settings['height scaling factor']
-    
+    is_domes = settings['dome']
+    if not is_domes:
+        ridges_aratio = settings['ridges aspect ratio']
     # adding layers
     feat_lname = 'domes'
     l = rs.AddLayer(feat_lname)
@@ -148,8 +162,11 @@ def main(settings):
     rs.CurrentLayer(feat_lname)
     feat_centers = non_intersecting_center_points(feat_no, xlim, ylim, feature_center_min_dist)
     for i, c in enumerate(feat_centers):
-        f = rh.Geometry.Sphere(c, feat_radii[i])
-        i = sc.doc.Objects.AddSphere(f)
+        if is_domes:
+            f = rh.Geometry.Sphere(c, feat_radii[i])
+            i = sc.doc.Objects.AddSphere(f)  
+        else:
+            i = Ellipsoid(c, feat_radii[i], ridges_aratio)
         feat_ids += [i]
     
     # shearing features
@@ -266,6 +283,7 @@ def main(settings):
     walls_east_int_height = [height(idata) for idata in walls_east_int_data]
     walls_north_int_height = [height(idata) for idata in walls_north_int_data]
     
+    # north alog x-axis, east along y-axis
     output_list('skewness_east.txt', walls_east_int_skewness)
     output_list('skewness_north.txt', walls_north_int_skewness)  
     output_list('aratio_east.txt', walls_east_int_aratio)
@@ -286,15 +304,21 @@ if __name__== '__main__':
     settings = dict()
     settings['half length'] = 150. # [m] half length of model so that xmin/ymin = -half length and xmax/ymax = half length
     settings['density'] = 0.0015 # features per square meter
-    settings['shear angle'] = 30. # [deg]
-    settings['rmin'] = 4. # [m] minimum dome radius
-    settings['rmax'] = 5.5 # [m] maximum dome radius
+    settings['shear angle'] = 10. # [deg]
+    settings['rmin'] = 4.1 # [m] minimum dome radius
+    settings['rmax'] = 5. # [m] maximum dome radius
     settings['rsigma'] = 1.5 # [m] standard deviation of radii distribution
-    settings['orientation sigma'] = 1. # [deg] standard deviation of orientation distribuition
+    settings['orientation sigma'] = 1 # [deg] standard deviation of orientation distribuition
     settings['orientation mean'] = 0. # [deg] mean orientation of features w.r.t. x-axis
     settings['walls'] = 10 # number of double walls east and north
     settings['opposing walls distance'] = 7. # [m] distance between two opposing walls
-    settings['height scaling factor'] = 0.3 # 0-1, where 1 means no scaling
+    settings['height scaling factor'] = 0.29 # 0-1, where 1 means no scaling
+    
+    settings['dome'] = True #True # True for domes, False for ridges
+    
+    settings['ridges aspect ratio'] = 4.
+    settings['rmin'] = 1. # [m] minimum dome radius
+    settings['rmax'] = 2. # [m] maximum dome radius
     
     for m in range(1):
         rd.seed(0)
