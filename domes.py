@@ -10,10 +10,10 @@ import os
 
 
 def Ellipsoid(c, radius, aratio):
-    """c is centerpoint, radius is short side along in y-dir, aratio is long side to short side or radius in x-dir."""
+    """c is centerpoint, radius is short side along in x-dir, aratio is long side to short side or radius in y-dir."""
     pt0, pt1, pt2 = cp.deepcopy(c), cp.deepcopy(c), cp.deepcopy(c)
-    pt0[1] += radius
-    pt1[0] += radius*aratio
+    pt0[1] += radius*aratio
+    pt1[0] += radius
     pt2[2] += radius
 
     cmd = "_Ellipsoid " + str(c) + " " + str(pt0) + " " + str(pt1) + " " + str(pt2)    
@@ -142,15 +142,16 @@ def main(settings):
     feat_no = int(settings['density']*(half_length*2.)**2)
     shear_angle = settings['shear angle']
     rmin, rmax, rsigma = settings['rmin'], settings['rmax'], settings['rsigma']
-    feature_center_min_dist = rmax*2
     sigma_rotation = settings['orientation sigma']
     mean_orientation = settings['orientation mean']
     walls_no = settings['walls']
     double_wall_dist = settings['opposing walls distance']
     height_scaling_factor = settings['height scaling factor']
     is_domes = settings['dome']
+    feature_center_min_dist = rmax*2
     if not is_domes:
         ridges_aratio = settings['ridges aspect ratio']
+        feature_center_min_dist = rmax*ridges_aratio*2
     # adding layers
     feat_lname = 'domes'
     l = rs.AddLayer(feat_lname)
@@ -202,7 +203,8 @@ def main(settings):
     rs.CurrentLayer(feat_lname)
     for i in feat_ids:
         split_ids = rs.SplitBrep(i, cplane_id, True)
-        rs.DeleteObject(split_ids[1])
+        if split_ids:
+            rs.DeleteObject(split_ids[1])
     rs.DeleteObject(cplane_id)
     
     # placing observation walls
@@ -314,7 +316,7 @@ if __name__== '__main__':
     settings['opposing walls distance'] = 7. # [m] distance between two opposing walls
     settings['height scaling factor'] = 0.29 # 0-1, where 1 means no scaling
     
-    settings['dome'] = True #True # True for domes, False for ridges
+    settings['dome'] = False #True # True for domes, False for ridges
     
     settings['ridges aspect ratio'] = 4.
     settings['rmin'] = 1. # [m] minimum dome radius
