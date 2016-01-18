@@ -23,7 +23,10 @@ def Ellipsoid(c, radius, aratio):
         return rs.LastCreatedObjects()[0]
     raise IOError('Cmdline construction of ellipsoid didnt work')
 
-        
+
+def bend_selected(beg_spine, end_spine, angle, bend_pt):
+    cmd = "_Bend " + str(beg_spine) + " " + str(end_spine) + " Symmetric=Yes Angle " + str(angle) + " " + str(bend_pt)
+    rs.Command(cmd, echo=False)
 
 def unif_rand(lo, hi):
     return rd.random()*(hi-lo)+lo
@@ -152,6 +155,7 @@ def main(settings):
     if not is_domes:
         ridges_aratio = settings['ridges aspect ratio']
         feature_center_min_dist = rmax*ridges_aratio*2
+        ridges_bangle = settings['ridges bending angle']
     # adding layers
     feat_lname = 'domes'
     l = rs.AddLayer(feat_lname)
@@ -176,6 +180,22 @@ def main(settings):
         ref_pt = cp.deepcopy(c)
         ref_pt[2] = feat_radii[i]
         rs.ShearObject(idx, c, ref_pt, shear_angle)
+    
+    # bending ellipses
+    if not is_domes:
+        rs.CurrentView('Top')
+        rs.UnselectAllObjects()
+        for i in range(len(feat_centers)):
+            # orientation of ellipse hardcoded here
+            cpoint = feat_centers[i]
+            beg_spine, end_spine = cp.deepcopy(cpoint), cp.deepcopy(cpoint)
+            beg_spine[1] += feat_radii[i]*ridges_aratio
+            end_spine[1] -= feat_radii[i]*ridges_aratio
+            bend_pt = rh.Geometry.Point3d(xlim[1]*100., ylim[1]*100., 0.)
+            rs.SelectObjects(feat_ids[i])
+            bend_selected(beg_spine, end_spine, ridges_bangle, bend_pt)
+            rs.UnselectAllObjects()
+            
         
     # rotating features
     axis = [0,0,1]
@@ -310,7 +330,7 @@ if __name__== '__main__':
     settings['rmin'] = 4.1 # [m] minimum dome radius
     settings['rmax'] = 5. # [m] maximum dome radius
     settings['rsigma'] = 1.5 # [m] standard deviation of radii distribution
-    settings['orientation sigma'] = 1 # [deg] standard deviation of orientation distribuition
+    settings['orientation sigma'] = 1. # [deg] standard deviation of orientation distribuition
     settings['orientation mean'] = 0. # [deg] mean orientation of features w.r.t. x-axis
     settings['walls'] = 10 # number of double walls east and north
     settings['opposing walls distance'] = 7. # [m] distance between two opposing walls
@@ -319,6 +339,7 @@ if __name__== '__main__':
     settings['dome'] = False #True # True for domes, False for ridges
     
     settings['ridges aspect ratio'] = 4.
+    settings['ridges bending angle'] = 30.
     settings['rmin'] = 1. # [m] minimum dome radius
     settings['rmax'] = 2. # [m] maximum dome radius
     
