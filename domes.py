@@ -24,8 +24,8 @@ def Ellipsoid(c, radius, aratio):
     raise IOError('Cmdline construction of ellipsoid didnt work')
 
 
-def bend_selected(beg_spine, end_spine, angle, bend_pt):
-    cmd = "_Bend " + str(beg_spine) + " " + str(end_spine) + " Symmetric=Yes Angle " + str(angle) + " " + str(bend_pt)
+def bend_selected(beg_spine, end_spine, bend_pt):
+    cmd = "_Bend " + str(beg_spine) + " " + str(end_spine) + " Symmetric=Yes " + str(bend_pt)
     rs.Command(cmd, echo=False)
 
 def unif_rand(lo, hi):
@@ -182,6 +182,7 @@ def main(settings):
         rs.ShearObject(idx, c, ref_pt, shear_angle)
     
     # bending ellipses
+    pi = 3.14159
     if not is_domes:
         rs.CurrentView('Top')
         rs.UnselectAllObjects()
@@ -191,9 +192,13 @@ def main(settings):
             beg_spine, end_spine = cp.deepcopy(cpoint), cp.deepcopy(cpoint)
             beg_spine[1] += feat_radii[i]*ridges_aratio
             end_spine[1] -= feat_radii[i]*ridges_aratio
-            bend_pt = rh.Geometry.Point3d(xlim[1]*100., ylim[1]*100., 0.)
+            bend_pt = cp.deepcopy(beg_spine)
+            r = feat_radii[i]*ridges_aratio*2
+            t = 3.*pi/2.+ridges_bangle*pi/180.
+            bend_pt[0] += r * ma.cos(t)
+            bend_pt[1] += r * ma.sin(t)
             rs.SelectObjects(feat_ids[i])
-            bend_selected(beg_spine, end_spine, ridges_bangle, bend_pt)
+            bend_selected(beg_spine, end_spine, bend_pt)
             rs.UnselectAllObjects()
             
         
@@ -325,7 +330,7 @@ def main(settings):
 if __name__== '__main__':    
     settings = dict()
     settings['half length'] = 150. # [m] half length of model so that xmin/ymin = -half length and xmax/ymax = half length
-    settings['density'] = 0.0015 # features per square meter
+    settings['density'] = 0.0005#0.0015 # features per square meter
     settings['shear angle'] = 10. # [deg]
     settings['rmin'] = 4.1 # [m] minimum dome radius
     settings['rmax'] = 5. # [m] maximum dome radius
@@ -338,7 +343,7 @@ if __name__== '__main__':
     
     settings['dome'] = False #True # True for domes, False for ridges
     
-    settings['ridges aspect ratio'] = 4.
+    settings['ridges aspect ratio'] = 5.
     settings['ridges bending angle'] = 30.
     settings['rmin'] = 1. # [m] minimum dome radius
     settings['rmax'] = 2. # [m] maximum dome radius
