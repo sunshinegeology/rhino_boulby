@@ -1,3 +1,4 @@
+
 import Rhino as rh
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
@@ -6,6 +7,7 @@ import copy as cp
 import math as ma
 import random as rd
 import sys
+import json
 import os
 
 
@@ -327,26 +329,26 @@ def main(settings):
     print 'East wall intersections:', walls_north_int_no
 
 
-if __name__== '__main__':    
+if __name__== '__main__': 
+    with open('rhino_settings.json', 'r') as f:
+        settings = json.load(f)
+    """
     settings = dict()
     settings['half length'] = 150. # [m] half length of model so that xmin/ymin = -half length and xmax/ymax = half length
-    settings['density'] = 0.0005#0.0015 # features per square meter
+    settings['density'] = 0.0001#0.0015 # features per square meter
     settings['shear angle'] = 10. # [deg]
-    settings['rmin'] = 4.1 # [m] minimum dome radius
-    settings['rmax'] = 5. # [m] maximum dome radius
+    settings['rmin'] = 1. # [m] minimum dome radius
+    settings['rmax'] = 2. # [m] maximum dome radius
     settings['rsigma'] = 1.5 # [m] standard deviation of radii distribution
-    settings['orientation sigma'] = 1. # [deg] standard deviation of orientation distribuition
+    settings['orientation sigma'] = 10. # [deg] standard deviation of orientation distribuition
     settings['orientation mean'] = 0. # [deg] mean orientation of features w.r.t. x-axis
     settings['walls'] = 10 # number of double walls east and north
     settings['opposing walls distance'] = 7. # [m] distance between two opposing walls
     settings['height scaling factor'] = 0.29 # 0-1, where 1 means no scaling
-    
     settings['dome'] = False #True # True for domes, False for ridges
-    
-    settings['ridges aspect ratio'] = 5.
+    settings['ridges aspect ratio'] = 20.
     settings['ridges bending angle'] = 30.
-    settings['rmin'] = 1. # [m] minimum dome radius
-    settings['rmax'] = 2. # [m] maximum dome radius
+    """
     
     for m in range(1):
         rd.seed(0)
