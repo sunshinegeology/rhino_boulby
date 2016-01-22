@@ -350,7 +350,6 @@ if __name__== '__main__':
     settings['ridges bending angle'] = 30.
     """
     
-    for m in range(1):
-        rd.seed(0)
-        main(settings)
+    rd.seed(0)
+    main(settings)
 
